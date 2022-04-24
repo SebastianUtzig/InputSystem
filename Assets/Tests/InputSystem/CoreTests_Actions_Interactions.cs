@@ -749,6 +749,75 @@ internal partial class CoreTests
 
     [Test]
     [Category("Actions")]
+    public void Actions_CanPerformCircleInteraction()
+    {
+        var mouse = InputSystem.AddDevice<Mouse>();
+
+        InputSystem.RegisterInteraction<CircleInteraction>();
+
+        var action = new InputAction(binding: "<Mouse>/position", interactions: "Circle(maxDeltaAngle=89.0)");
+        action.Enable();
+
+        var startedCount = 0;
+        var performedCount = 0;
+        var canceledCount = 0;
+
+        action.started += _ => ++startedCount;
+        action.performed += _ => ++performedCount;
+        action.canceled += _ => ++canceledCount;
+
+        // Clockwise Circle
+        for(int deg = 0; deg <= 360; ++deg)
+        {
+            float rad = deg * Mathf.Deg2Rad;
+            float x = 0.5f + (0.25f * Mathf.Cos(rad));
+            float y = 0.5f + (0.25f * Mathf.Sin(rad));
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = new Vector2(x, y) });
+            InputSystem.Update();
+        }
+        Assert.That(performedCount, Is.EqualTo(1));
+        Assert.That(startedCount, Is.EqualTo(2));// Starts directly after performed again
+        Assert.That(canceledCount, Is.EqualTo(0));
+
+        startedCount = 0;
+        performedCount = 0;
+        canceledCount = 0;
+
+        // Counter - Clockwise Circle
+        for (int deg = 360; deg >= 0; --deg)
+        {
+            float rad = deg * Mathf.Deg2Rad;
+            float x = 0.5f + (0.25f * Mathf.Cos(rad));
+            float y = 0.5f + (0.25f * Mathf.Sin(rad));
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = new Vector2(x, y) });
+            InputSystem.Update();
+        }
+        Assert.That(performedCount, Is.EqualTo(1));
+        Assert.That(startedCount, Is.EqualTo(1));
+        Assert.That(canceledCount, Is.EqualTo(0));
+
+        startedCount = 0;
+        performedCount = 0;
+        canceledCount = 0;
+
+        //Square:
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = new Vector2(0.25f, 0.25f) });
+        InputSystem.Update();
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = new Vector2(0.75f, 0.25f) });
+        InputSystem.Update();
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = new Vector2(0.75f, 0.75f) });
+        InputSystem.Update();
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = new Vector2(0.25f, 0.75f) });
+        InputSystem.Update();
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = new Vector2(0.25f, 0.25f) });
+        InputSystem.Update();
+        Assert.That(performedCount, Is.EqualTo(0)); // No circle should be detected!
+        Assert.That(canceledCount, Is.EqualTo(4));
+        Assert.That(startedCount, Is.EqualTo(4)); // Start is triggered after every cancel
+    }
+
+    [Test]
+    [Category("Actions")]
     public void Actions_CanCustomizeButtonPressPointsOfInteractions()
     {
         var gamepad = InputSystem.AddDevice<Gamepad>();
